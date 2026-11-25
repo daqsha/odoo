@@ -1,4 +1,4 @@
-# Gadget Hub POS & Inventory
+# blibli POS & Inventory
 
 A localhost point-of-sale and inventory app built with **Python, Streamlit and SQLite**, inspired by the
 integrated POS and Inventory flows in Odoo. It targets two gaps in standard POS setups:
@@ -16,6 +16,7 @@ Everything persists in a local SQLite file, so stock, sales and promotions survi
 
 - [Set up in VS Code](#set-up-in-vs-code)
 - [Using the app](#using-the-app)
+- [Look and feel](#look-and-feel)
 - [How the promotion rule engine works](#how-the-promotion-rule-engine-works)
 - [Inventory rules (stock-in, stock-out, IMEI and serials)](#inventory-rules)
 - [Project layout](#project-layout)
@@ -113,6 +114,24 @@ The sidebar has seven pages.
 Nothing on this page creates a sale or changes stock.
 
 ---
+
+## Look and feel
+
+The interface follows a purple and coral dashboard layout. The main parts are:
+
+- a purple navigation rail with a white pill for the current page
+- a greeting with search, and category pills that wrap
+- product cards with one primary action (*Order* or *Add unit*)
+- Best Seller and Statistics blocks, with a small revenue chart
+- a sticky right-hand panel. On **Point of Sale** it holds *My Order*, the customer, payment, promotions and checkout. On **Demo Price** it holds the price estimate, and on **Overview** it holds recent orders and stock alerts.
+
+To rebrand:
+
+- **Store and cashier names:** `STORE_NAME` and `CASHIER_NAME` in `config.py`.
+- **Colours:** the `PRIMARY` and `ACCENT` constants and the CSS variables at the top of `views/theme.py`. Streamlit's own widgets (buttons, pills, tabs, focus rings) use the purple from the `[theme]` block in `.streamlit/config.toml`.
+- **Product icons:** the sample products have no photos. Each card shows an emoji for its category. Change `CATEGORY_ICONS` in `views/theme.py`, or extend the cards to show images.
+
+The heading font (Poppins) loads from Google Fonts. Without internet access the page falls back to the system font, and nothing else changes.
 
 ## How the promotion rule engine works
 
@@ -213,8 +232,8 @@ pos_inventory/
 │   ├── money.py              Exact rounding and currency formatting
 │   ├── errors.py             BusinessError, StockError, PromotionError
 │   └── utils.py
-├── views/                    Streamlit pages (one module per page)
-└── tests/                    76 tests: rules, pricing, identifiers, stock and sales, and headless app flows
+├── views/                    Streamlit pages (one module per page) and theme.py for styling
+└── tests/                    83 tests: rules, pricing, identifiers, stock and sales, theme helpers and headless app flows
 ```
 
 Data flows one way: pages call `logic/`, and `logic/` talks to SQLite through an open connection passed in by the page.
@@ -273,7 +292,7 @@ rows are validated exactly like typed-in data.
   `logic/pricing.py` (`build_quote`) and `logic/rules.py` (`reward_summary`, `terms`), add its label to
   `REWARD_LABELS` in `logic/promotions.py`, and extend the `CHECK` constraint in `database/schema.sql`. Because SQLite
   cannot alter a `CHECK` constraint in place, reset the demo database or run a manual migration for existing data.
-- **Streamlit version.** Developed and tested on Streamlit 1.67. `requirements.txt` asks for 1.40 or newer.
+- **Streamlit version.** Developed and tested on Streamlit 1.67. The layout uses keyed containers, pills and column alignment, so `requirements.txt` asks for 1.50 or newer. Older versions are untested.
 
 ---
 

@@ -144,6 +144,16 @@ def test_inventory_stock_in_refuses_a_bad_imei_checksum(app):
     assert _sql("SELECT COUNT(*) FROM serials WHERE product_id = ?", phone)[0][0] == before
 
 
+def test_overview_order_button_adds_to_cart_and_opens_point_of_sale(app):
+    _go(app, "🏠 Dashboard")
+    order = next(b for b in app.button if b.key and b.key.startswith("dash_order_"))
+    charger_id = int(order.key.removeprefix("dash_order_"))
+    order.click().run()
+    assert not app.exception
+    assert app.session_state["nav"] == "🛒 Point of Sale"
+    assert app.session_state["pos_cart"] == [{"product_id": charger_id, "qty": 1, "serial_no": None}]
+
+
 def test_inventory_write_off_and_count_adjustment_forms(app):
     _go(app, "📦 Inventory")
     drone = _product_id("DR-MINI-2")

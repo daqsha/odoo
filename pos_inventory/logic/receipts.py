@@ -32,7 +32,7 @@ def receipt_text(sale: dict, width: int = WIDTH) -> str:
     rule, thin = "=" * width, "-" * width
     out = [
         rule,
-        _center(config.STORE_NAME.upper(), width),
+        _center(config.STORE_NAME, width),
         _center(f"Receipt {sale.get('receipt_no') or '-'}", width),
         _center(_when(sale["created_at"]), width),
     ]

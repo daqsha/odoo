@@ -8,7 +8,7 @@ from database.db import transaction
 from logic import pos, receipts
 from logic.errors import BusinessError
 from logic.money import money
-from views import common
+from views import common, theme
 
 
 def _void(sale_id: int, receipt_no: str) -> None:
@@ -23,7 +23,7 @@ def _void(sale_id: int, receipt_no: str) -> None:
 
 
 def render() -> None:
-    st.header("🧾 Sales & receipts")
+    theme.page_header("Orders & Receipts", "Every completed sale. Reopen, download or void a receipt.")
     with transaction() as conn:
         sales = pos.list_sales(conn, limit=300)
 

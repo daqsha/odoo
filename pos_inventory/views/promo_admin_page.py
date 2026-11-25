@@ -11,7 +11,7 @@ from logic import catalog, payments, rules
 from logic import promotions as promo_store
 from logic.errors import BusinessError
 from logic.money import money
-from views import common
+from views import common, theme
 
 K_VERSION = "promo_form_version"
 PAYMENT_METHOD_LABELS = payments.METHOD_LABELS
@@ -38,7 +38,7 @@ def _toggle_payment(code: str, currently_active: bool) -> None:
 
 
 def render() -> None:
-    st.header("🎯 Promotions & payment options")
+    theme.page_header("Promotions & Payments", "The rules the POS enforces. Changes apply to the next sale.")
     st.caption(
         "A promotion unlocks at the POS only when its T&C are met for the chosen payment method and the cart. "
         "The rule engine re-checks every applied promotion on each change and at checkout."

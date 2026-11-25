@@ -11,7 +11,7 @@ from logic.errors import BusinessError
 from logic.identifiers import split_identifiers
 from logic.inventory import STOCK_OUT_REASONS
 from logic.money import money
-from views import common
+from views import common, theme
 
 K_VERSION = "inv_form_version"
 MOVE_LABELS = {
@@ -40,7 +40,7 @@ def _product_name(products: dict[int, dict], pid: int) -> str:
 
 
 def render() -> None:
-    st.header("📦 Inventory")
+    theme.page_header("Product & Inventory", "Stock levels, receiving, write-offs and the catalogue")
     overview_tab, stock_in_tab, stock_out_tab, catalogue_tab, history_tab = st.tabs(
         ["Stock overview", "Stock-in", "Stock-out & adjustments", "Catalogue", "Movement history"]
     )

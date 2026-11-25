@@ -13,8 +13,9 @@ DATA_DIR = BASE_DIR / "data"
 SEED_DIR = DATA_DIR / "seed"
 DB_PATH = Path(os.environ.get("POS_DB_PATH", DATA_DIR / "pos.sqlite3"))
 
-APP_TITLE = "Gadget Hub POS & Inventory"
-STORE_NAME = "Gadget Hub (Demo)"
+APP_TITLE = "blibli · POS & Inventory"
+STORE_NAME = "blibli"
+CASHIER_NAME = "Cashier"  # shown in the greeting; change to your cashier's first name
 
 # Amounts are stored as whole numbers in this currency (no decimals).
 CURRENCY_SYMBOL = "Rp"

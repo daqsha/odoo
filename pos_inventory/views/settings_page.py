@@ -6,7 +6,7 @@ import streamlit as st
 
 import config
 from database.seed import reset_demo_data
-from views import common
+from views import common, theme
 
 K_CONFIRM = "reset_confirm"
 
@@ -23,7 +23,7 @@ def _reset() -> None:
 
 
 def render() -> None:
-    st.header("⚙️ Settings & data")
+    theme.page_header("Settings", "Store details, promotion rules and demo data")
 
     st.markdown("#### Store")
     st.markdown(

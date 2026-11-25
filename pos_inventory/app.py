@@ -1,4 +1,4 @@
-"""Gadget Hub POS & Inventory: Streamlit entry point.
+"""blibli POS & Inventory: Streamlit entry point.
 
 Run with:   streamlit run app.py
 """
@@ -9,7 +9,17 @@ import streamlit as st
 
 import config
 from database.db import init_database
-from views import common, dashboard_page, demo_price_page, inventory_page, pos_page, promo_admin_page, sales_page, settings_page
+from views import (
+    common,
+    dashboard_page,
+    demo_price_page,
+    inventory_page,
+    pos_page,
+    promo_admin_page,
+    sales_page,
+    settings_page,
+    theme,
+)
 
 st.set_page_config(page_title=config.APP_TITLE, page_icon="🛒", layout="wide")
 
@@ -21,6 +31,7 @@ def _bootstrap() -> str:
 
 
 _bootstrap()
+theme.inject()
 
 PAGES = {
     "🏠 Dashboard": dashboard_page.render,
@@ -33,10 +44,9 @@ PAGES = {
 }
 
 with st.sidebar:
-    st.title(config.STORE_NAME)
+    st.markdown(theme.brand_html(), unsafe_allow_html=True)
     page = st.radio("Navigate", list(PAGES), key="nav", label_visibility="collapsed")
-    st.divider()
-    st.caption(f"Data file: `{config.DB_PATH.name}`")
+    st.markdown(theme.sidebar_footer(config.DB_PATH.name), unsafe_allow_html=True)
 
 common.show_flash()
 PAGES[page]()

@@ -16,7 +16,7 @@ from logic import catalog, inventory, payments, pos, pricing, receipts, rules
 from logic import promotions as promo_store
 from logic.errors import BusinessError
 from logic.money import money
-from views import common
+from views import common, theme
 
 K_CART = "demo_cart"
 K_APPLIED = "demo_applied"
@@ -62,7 +62,7 @@ def _remove_item(index: int) -> None:
 def _apply_promo(promo_id: int) -> None:
     snap = _snapshot()
     try:
-        lines = pos.build_cart_lines(st.session_state[K_CART], snap.get("products", {}))
+        lines = pos.build_cart_lines(st.session_state[K_CART], snap["products"])
         payment = next((p for p in snap["payments"] if p.code == st.session_state.get(K_PAYMENT)), None)
         st.session_state[K_APPLIED] = rules.try_apply(
             snap["promotions"], lines, payment, date.today(), st.session_state[K_APPLIED], promo_id
@@ -102,16 +102,17 @@ def _comparison_rows(snap: dict, lines, today: date) -> list[dict]:
 
 def render() -> None:
     _init_state()
-    st.header("🏷️ Demo Price")
-    st.caption(
-        "Quote any product for a customer on the spot. Stock and IMEIs are not checked, "
-        "and nothing is sold or deducted from inventory."
-    )
+    today = date.today()
+    head, _ = st.columns([3, 2], vertical_alignment="bottom")
+    with head:
+        theme.page_header(
+            "Demo Price",
+            "Quote any product for a customer on the spot. Stock and IMEIs are not checked, and nothing is sold.",
+        )
     common.show_notices(st.session_state[K_NOTICES])
     st.session_state[K_NOTICES] = []
 
     snap = _snapshot()
-    today = date.today()
     products = snap["products"]
 
     cart = [item for item in st.session_state[K_CART] if item["product_id"] in products]
@@ -129,71 +130,77 @@ def render() -> None:
     quote = pricing.build_quote(lines, payment, kept)
     savings = common.savings_by_promo(lines, payment, kept, evaluations)
 
-    left, right = st.columns([2, 3], gap="large")
+    left, right = st.columns([5, 3], gap="large")
     with left:
-        st.subheader("1 · Products to quote")
-        product_ids = list(products)
-        st.selectbox(
-            "Product",
-            product_ids,
-            format_func=lambda pid: _label(products[pid], snap["on_hand"].get(pid, 0)),
-            key=K_PICK,
-        )
-        qty_col, btn_col = st.columns([1, 1])
-        qty_col.number_input("Quantity", min_value=1, max_value=99, value=1, step=1, key=K_QTY)
-        btn_col.write("")
-        btn_col.button("Add to quote", type="primary", on_click=_add_item)
-        st.caption("Serial-tracked items can be quoted without scanning their IMEI or serial.")
+        with st.container(border=True, key="card_demo_add"):
+            st.markdown('<div class="section-title">Add a product</div>', unsafe_allow_html=True)
+            st.selectbox(
+                "Product",
+                list(products),
+                format_func=lambda pid: _label(products[pid], snap["on_hand"].get(pid, 0)),
+                key=K_PICK,
+            )
+            qty_col, btn_col = st.columns([1, 1], vertical_alignment="bottom")
+            qty_col.number_input("Quantity", min_value=1, max_value=99, value=1, step=1, key=K_QTY)
+            btn_col.button("Add to quote", type="primary", on_click=_add_item)
+            st.caption("Serial-tracked items can be quoted without scanning their IMEI or serial.")
 
-        st.subheader("Quote items")
-        if not lines:
-            st.info("Add products to build a quote.")
-        for index, (item, line) in enumerate(zip(cart, lines)):
-            with st.container(border=True):
-                info, amount = st.columns([3, 2])
-                info.markdown(f"**{line.name}**")
-                info.caption(line.sku)
-                amount.markdown(f"**{money(line.line_total)}**")
-                amount.caption(f"{line.qty} × {money(line.unit_price)}")
+        theme.section_title("Quote items", "Stock is not reserved")
+        with st.container(border=True, key="card_demo_items"):
+            if not lines:
+                st.info("Add products to build a quote.")
+            for index, (item, line) in enumerate(zip(cart, lines)):
+                category = products[line.product_id]["category"]
+                st.markdown(
+                    theme.list_row(
+                        emoji=theme.icon_for(category),
+                        tint=theme.tint_for(category),
+                        title=line.name,
+                        subtitle=line.sku,
+                        value=money(line.line_total),
+                        value_note=f"{line.qty} × {money(line.unit_price)}",
+                    ),
+                    unsafe_allow_html=True,
+                )
                 st.button("Remove", key=f"demo_remove_{index}", on_click=_remove_item, args=(index,))
-        st.button("Clear quote", key="demo_clear", disabled=not lines, on_click=_clear)
+            st.button("Clear quote", key="demo_clear", disabled=not lines, on_click=_clear)
 
     with right:
-        st.subheader("2 · Payment method")
-        labels = {p.code: payments.payment_label(p) for p in snap["payments"]}
-        st.selectbox(
-            "Payment method",
-            [None, *labels],
-            key=K_PAYMENT,
-            format_func=lambda code: "Choose how the customer pays…" if code is None else labels.get(code, code),
-            label_visibility="collapsed",
-        )
-
-        st.subheader("3 · Promotions (T&C checked)")
-        if payment is None:
-            st.info("Choose a payment method first. Promotions stay locked until their T&C can be checked.")
-        common.promo_panel(
-            evaluations,
-            st.session_state[K_APPLIED],
-            prefix="demo",
-            on_apply=_apply_promo,
-            on_remove=_remove_promo,
-            savings=savings,
-        )
-
-        st.subheader("4 · Price estimate")
-        st.metric("Customer pays today", money(quote.total_due))
-        common.totals_block(quote)
-        if lines:
-            with st.expander("Copy-ready estimate for the customer"):
-                st.code(receipts.estimate_text(quote), language=None)
-
-        st.subheader("5 · Compare payment methods")
-        if not lines:
-            st.caption("Add products to compare every payment method side by side.")
-        else:
-            st.caption(
-                "Each row uses the best combination of promotions whose T&C that payment method meets. "
-                "Sorted by lowest effective price."
+        with st.container(border=True, key="quote_panel"):
+            st.markdown('<div class="section-title">Price estimate</div>', unsafe_allow_html=True)
+            st.markdown("**Payment method**")
+            labels = {p.code: payments.payment_label(p) for p in snap["payments"]}
+            st.selectbox(
+                "Payment method",
+                [None, *labels],
+                key=K_PAYMENT,
+                format_func=lambda code: "Choose how the customer pays…" if code is None else labels.get(code, code),
+                label_visibility="collapsed",
             )
-            st.dataframe(_comparison_rows(snap, lines, today), hide_index=True)
+
+            st.markdown("**Promotions (T&C checked)**")
+            if payment is None:
+                st.info("Choose a payment method first. Promotions stay locked until their T&C can be checked.")
+            common.promo_panel(
+                evaluations,
+                st.session_state[K_APPLIED],
+                prefix="demo",
+                on_apply=_apply_promo,
+                on_remove=_remove_promo,
+                savings=savings,
+            )
+
+            st.markdown(theme.total_row("Customer pays today", money(quote.total_due)), unsafe_allow_html=True)
+            common.totals_block(quote)
+            if lines:
+                with st.expander("Copy-ready estimate for the customer"):
+                    st.code(receipts.estimate_text(quote), language=None)
+
+            st.markdown("**Compare payment methods**")
+            if not lines:
+                st.caption("Add products to compare every payment method side by side.")
+            else:
+                st.caption(
+                    "Each row uses the best promotions that payment method qualifies for. Lowest effective price first."
+                )
+                st.dataframe(_comparison_rows(snap, lines, today), hide_index=True)

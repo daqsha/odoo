@@ -102,39 +102,37 @@ def promo_panel(
 
     for ev in ordered:
         promo = ev.promotion
-        with st.container(border=True):
-            info, action = st.columns([4, 1.3])
-            with info:
-                st.markdown(f"**{promo.name}** · `{promo.code}`")
-                st.caption(rules.reward_summary(promo))
-                if promo.id in applied_set:
-                    st.markdown(":green[✔ Applied to this sale]")
-                elif ev.eligible:
-                    text = ":green[🔓 Unlocked. T&C met]"
-                    if savings.get(promo.id):
-                        text += f" · saves {money(savings[promo.id])}"
-                    st.markdown(text)
-                else:
-                    st.markdown(":red[🔒 Locked]")
-                    for reason in ev.reasons:
-                        st.caption(f"✖ {reason}")
-                with st.expander("Terms & conditions"):
-                    for line in rules.terms(promo):
-                        st.markdown(f"- {line}")
-            with action:
-                if promo.id in applied_set:
-                    st.button(
-                        "Remove",
-                        key=f"{prefix}_promo_remove_{promo.id}",
-                        on_click=on_remove,
-                        args=(promo.id,),
-                    )
-                else:
-                    st.button(
-                        "Apply",
-                        key=f"{prefix}_promo_apply_{promo.id}",
-                        type="primary" if ev.eligible else "secondary",
-                        disabled=not ev.eligible,
-                        on_click=on_apply,
-                        args=(promo.id,),
-                    )
+        applied = promo.id in applied_set
+        with st.container(border=True, key=f"card_promo_{prefix}_{promo.id}"):
+            st.markdown(f"**{promo.name}** · `{promo.code}`")
+            st.caption(rules.reward_summary(promo))
+            if applied:
+                st.markdown(":green[✔ Applied to this sale]")
+            elif ev.eligible:
+                text = ":green[🔓 Unlocked. T&C met]"
+                if savings.get(promo.id):
+                    text += f" · saves {money(savings[promo.id])}"
+                st.markdown(text)
+            else:
+                st.markdown(":red[🔒 Locked]")
+                for reason in ev.reasons:
+                    st.caption(f"✖ {reason}")
+            with st.expander("Terms & conditions"):
+                for line in rules.terms(promo):
+                    st.markdown(f"- {line}")
+            if applied:
+                st.button(
+                    "Remove",
+                    key=f"{prefix}_promo_remove_{promo.id}",
+                    on_click=on_remove,
+                    args=(promo.id,),
+                )
+            else:
+                st.button(
+                    "Apply",
+                    key=f"{prefix}_promo_apply_{promo.id}",
+                    type="primary" if ev.eligible else "secondary",
+                    disabled=not ev.eligible,
+                    on_click=on_apply,
+                    args=(promo.id,),
+                )

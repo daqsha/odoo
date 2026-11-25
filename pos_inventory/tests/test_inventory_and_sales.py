@@ -258,6 +258,18 @@ def test_void_needs_a_reason(db):
             pos.void_sale(conn, sale_id=sale_id, reason="   ")
 
 
+def test_best_sellers_and_seven_day_revenue_series(db):
+    sell_one_phone(db)
+    with transaction(db) as conn:
+        rows = reports.product_sales(conn)
+        assert rows[0]["sku"] == "NX-X1-128-BLK"  # best sellers first
+        assert next(r for r in rows if r["sku"] == "NX-X1-128-BLK")["units"] == 1
+        series = reports.daily_revenue(conn, date.today(), days=7)
+        assert len(series) == 7
+        assert series[-1][1] == 4_599_000
+        assert all(value == 0 for _, value in series[:-1])
+
+
 def test_dashboard_summary_reflects_todays_sales(db):
     sell_one_phone(db)
     with transaction(db) as conn:
