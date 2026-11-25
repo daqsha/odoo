@@ -28,8 +28,33 @@ def render() -> None:
         sales = pos.list_sales(conn, limit=300)
 
     if not sales:
-        st.info("No sales yet. Complete a sale on the Point of Sale tab.")
+        st.markdown(
+            theme.empty_state("🧾", "No sales yet", "Complete a sale on the Point of Sale page and it appears here."),
+            unsafe_allow_html=True,
+        )
         return
+
+    completed = [s for s in sales if s["status"] == "COMPLETED"]
+    a, b, c = st.columns(3)
+    a.metric("Completed sales", len(completed))
+    b.metric("Revenue (completed)", money(sum(s["total_due"] for s in completed)))
+    c.metric("Voided", len(sales) - len(completed))
+
+    search = st.text_input(
+        "Search sales",
+        key="sales_search",
+        placeholder="Filter by receipt number, customer or payment method",
+        label_visibility="collapsed",
+    )
+    term = (search or "").strip().lower()
+    if term:
+        sales = [
+            s for s in sales
+            if term in f"{s['receipt_no']} {s['customer_name']} {s['payment_label']}".lower()
+        ]
+        if not sales:
+            st.markdown(theme.empty_state("🔎", f"No sale matches “{search.strip()}”"), unsafe_allow_html=True)
+            return
 
     st.dataframe(
         [
@@ -40,7 +65,7 @@ def render() -> None:
                 "Paid with": s["payment_label"],
                 "Total": money(s["total_due"]),
                 "Promotions": money(s["promo_discount"]) if s["promo_discount"] else "",
-                "Status": "Voided" if s["status"] == "VOIDED" else "Completed",
+                "Status": "🔴 Voided" if s["status"] == "VOIDED" else "🟢 Completed",
             }
             for s in sales
         ],

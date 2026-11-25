@@ -141,9 +141,9 @@ def render() -> None:
             )
             with st.container(border=True, key="card_revenue"):
                 st.markdown(
-                    f'<div class="k" style="color:#8A8FA3;font-size:.8rem">Revenue today</div>'
+                    f'<div class="k" style="color:#6B7085;font-size:.8rem">Revenue today</div>'
                     f'<div style="font-size:1.6rem;font-weight:700;letter-spacing:-.02em">{theme.esc(money(summary["sales_total"]))}</div>'
-                    f'<div style="color:#8A8FA3;font-size:.78rem">Promotions {theme.esc(money(summary["discounts"]))} · '
+                    f'<div style="color:#6B7085;font-size:.78rem">Promotions {theme.esc(money(summary["discounts"]))} · '
                     f'Cashback owed {theme.esc(money(summary["cashback"]))}</div>',
                     unsafe_allow_html=True,
                 )

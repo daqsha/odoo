@@ -16,7 +16,7 @@ from logic.errors import BusinessError
 from logic.models import PaymentOption, Promotion
 from logic.money import money
 from logic.pricing import build_quote
-from views import common, theme
+from views import common, lookup, theme
 
 K_CART = "pos_cart"
 K_APPLIED = "pos_applied"
@@ -67,18 +67,26 @@ def _init_state() -> None:
 
 # ----- callbacks: they run before the page is rebuilt, so the cart is always current -----
 
-def _add_to_cart(product_id: int, serial_no: str | None) -> None:
+def _add_to_cart(product_id: int, serial_no: str | None) -> bool:
     snap = _snapshot()
+    product = snap.products.get(product_id)
     try:
         pos.cart_add(
             st.session_state[K_CART],
-            product=snap.products.get(product_id),
+            product=product,
             on_hand=snap.on_hand.get(product_id, 0),
             in_stock_serials=snap.serials.get(product_id, []),
             serial_no=serial_no,
         )
     except BusinessError as exc:
         _notice("error", str(exc))
+        return False
+    common.toast(f"Added {product['name']}" + (f" · {serial_no}" if serial_no else ""), "🛒")
+    return True
+
+
+def _lookup_add(product_id: int, serial_no: str | None) -> None:
+    _add_to_cart(product_id, serial_no)
 
 
 def _add_quantity(product_id: int) -> None:
@@ -103,7 +111,19 @@ def _scan() -> None:
             return
     product = next((p for p in snap.products.values() if p["sku"] == raw.upper()), None)
     if product is None:
-        _notice("error", f"Nothing matches '{raw}'. Check the code, or the unit may already be sold.")
+        # Not sellable: explain exactly why when the number is known (sold or written off)
+        with transaction() as conn:
+            known = next((u for u in (inventory.serial_status(conn, c) for c in candidates) if u), None)
+        if known and known["status"] == "sold":
+            _notice(
+                "error",
+                f"{known['serial_no']} ({known['name']}) was already sold on {common.fmt_stamp(known['sold_at'])}, "
+                f"receipt {known['receipt_no']}. Void that sale first if the unit came back.",
+            )
+        elif known and known["status"] == "written_off":
+            _notice("error", f"{known['serial_no']} ({known['name']}) was written off and cannot be sold.")
+        else:
+            _notice("error", f"Nothing matches '{raw}'. Check the code, or try the stock lookup.")
         return
     if product["tracking"] != "none":
         _notice("warning", f"{product['name']} is serial-tracked. Scan its IMEI or serial, or pick one from the list.")
@@ -145,6 +165,9 @@ def _apply_promo(promo_id: int) -> None:
         )
     except BusinessError as exc:
         _notice("error", str(exc))
+    else:
+        name = next((p.name for p in snap.promotions if p.id == promo_id), "Promotion")
+        common.toast(f"Applied: {name}", "🎉")
 
 
 def _remove_promo(promo_id: int) -> None:
@@ -165,6 +188,7 @@ def _checkout() -> None:
         _notice("error", str(exc))
         return
     st.session_state[K_LAST_SALE] = sale_id
+    common.toast("Sale completed. Receipt is ready.", "✅")
     st.session_state[K_CART] = []
     st.session_state[K_APPLIED] = []
     st.session_state[K_CUSTOMER] = ""
@@ -211,7 +235,7 @@ def render() -> None:
     quote = build_quote(lines, payment, kept)
     savings = common.savings_by_promo(lines, payment, kept, evaluations)
 
-    head, scan_col = st.columns([3, 2], vertical_alignment="bottom")
+    head, scan_col, lookup_col = st.columns([3, 2, 1.1], vertical_alignment="bottom")
     with head:
         theme.page_header(
             "Point of Sale",
@@ -225,6 +249,15 @@ def render() -> None:
             placeholder="Scan SKU, IMEI or serial, then press Enter",
             label_visibility="collapsed",
         )
+    with lookup_col:
+        with st.popover("🔎 Stock lookup", use_container_width=True):
+            st.markdown("**Stock lookup**")
+            st.caption("Check any unit's status, including sold and written-off ones.")
+            lookup.render(
+                "pos",
+                on_add=_lookup_add,
+                in_cart_serials={item["serial_no"] for item in cart if item["serial_no"]},
+            )
 
     common.show_notices(pending)
     if st.session_state[K_LAST_SALE]:
@@ -339,8 +372,22 @@ def _render_checkout(snap: _Snapshot, cart, lines, payment, quote, evaluations, 
         f'<div class="section-title">My Order <small>{count} item(s)</small></div>',
         unsafe_allow_html=True,
     )
+    st.markdown(
+        theme.stepper(
+            [
+                ("Items", bool(lines)),
+                ("Payment", payment is not None),
+                ("Promos", bool(lines) and payment is not None),
+                ("Checkout", False),
+            ]
+        ),
+        unsafe_allow_html=True,
+    )
     if not lines:
-        st.info("Your order is empty. Scan a barcode or pick products on the left.")
+        st.markdown(
+            theme.empty_state("🛒", "Your order is empty", "Scan a barcode, or pick products on the left."),
+            unsafe_allow_html=True,
+        )
     for index, (item, line) in enumerate(zip(cart, lines)):
         tint = theme.tint_for(snap.products[line.product_id]["category"])
         icon = theme.icon_for(snap.products[line.product_id]["category"])

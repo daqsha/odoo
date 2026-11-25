@@ -7,6 +7,7 @@ unit in `serials`, whose status (in_stock / sold / written_off) decides whether 
 
 from __future__ import annotations
 
+import re
 import sqlite3
 
 from logic.catalog import get_product, list_products
@@ -233,5 +234,109 @@ def movement_history(conn: sqlite3.Connection, *, product_id: int | None = None,
            WHERE (? IS NULL OR m.product_id = ?)
            ORDER BY m.id DESC LIMIT ?""",
         (product_id, product_id, limit),
+    )
+    return [dict(row) for row in rows]
+
+
+UNIT_STATUS_LABELS = {"in_stock": "Available", "sold": "Sold", "written_off": "Written off"}
+
+
+def _like(text: str) -> str:
+    """LIKE pattern for a user search term, with SQL wildcards in the term treated literally."""
+    escaped = text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
+def serial_status(conn: sqlite3.Connection, serial_no: str) -> dict | None:
+    """Status of one IMEI/serial whatever state it is in, with the sale that took it (if any)."""
+    row = conn.execute(
+        """SELECT s.serial_no, s.status, s.received_at, p.id AS product_id, p.sku, p.name,
+                  sa.receipt_no, sa.created_at AS sold_at
+           FROM serials s JOIN products p ON p.id = s.product_id
+           LEFT JOIN sales sa ON sa.id = s.sale_id
+           WHERE s.serial_no = ?""",
+        (serial_no,),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def lookup(conn: sqlite3.Connection, query: str, *, limit: int = 30) -> dict:
+    """Find stock by IMEI/serial (full or partial), SKU, product name or brand.
+
+    Returns {"units": [...], "products": [...], "exact_unit": dict | None}. Each unit carries its
+    exact status and, when sold, the receipt, sale date and customer; when written off, the reason.
+    An exact IMEI/serial match is listed first and also returned as `exact_unit`.
+    """
+    text = (query or "").strip()
+    if not text:
+        return {"units": [], "products": [], "exact_unit": None}
+    compact = re.sub(r"[\s-]", "", text).upper()
+    serial_like = _like(compact)
+    word_like = _like(text.lower())
+
+    units = [
+        dict(row)
+        for row in conn.execute(
+            """SELECT s.serial_no, s.status, s.received_at, s.sale_id,
+                      p.id AS product_id, p.sku, p.name, p.category, p.price, p.tracking,
+                      sa.receipt_no, sa.created_at AS sold_at, sa.customer_name,
+                      (SELECT m.note FROM stock_moves m
+                        WHERE m.serial_no = s.serial_no AND m.move_type = 'STOCK_OUT'
+                        ORDER BY m.id DESC LIMIT 1) AS writeoff_note
+               FROM serials s
+               JOIN products p ON p.id = s.product_id
+               LEFT JOIN sales sa ON sa.id = s.sale_id
+               WHERE upper(s.serial_no) LIKE ? ESCAPE '\\'
+                  OR lower(p.sku) LIKE ? ESCAPE '\\'
+                  OR lower(p.name) LIKE ? ESCAPE '\\'
+                  OR lower(p.brand) LIKE ? ESCAPE '\\'
+               ORDER BY (upper(s.serial_no) = ?) DESC,
+                        (upper(s.serial_no) LIKE ? ESCAPE '\\') DESC,
+                        CASE s.status WHEN 'in_stock' THEN 0 WHEN 'sold' THEN 1 ELSE 2 END,
+                        p.name, s.serial_no
+               LIMIT ?""",
+            (serial_like, word_like, word_like, word_like, compact, serial_like, limit),
+        )
+    ]
+
+    quantities = on_hand_map(conn)
+    products = []
+    for row in conn.execute(
+        """SELECT p.*,
+                  (SELECT COUNT(*) FROM serials s WHERE s.product_id = p.id AND s.status = 'in_stock') AS units_available,
+                  (SELECT COUNT(*) FROM serials s WHERE s.product_id = p.id AND s.status = 'sold') AS units_sold,
+                  (SELECT COUNT(*) FROM serials s WHERE s.product_id = p.id AND s.status = 'written_off') AS units_written_off,
+                  (SELECT COALESCE(SUM(sl.qty), 0) FROM sale_lines sl JOIN sales sa ON sa.id = sl.sale_id
+                    WHERE sl.product_id = p.id AND sa.status = 'COMPLETED') AS qty_sold
+           FROM products p
+           WHERE lower(p.sku) LIKE ? ESCAPE '\\'
+              OR lower(p.name) LIKE ? ESCAPE '\\'
+              OR lower(p.brand) LIKE ? ESCAPE '\\'
+              OR p.id IN (SELECT product_id FROM serials WHERE upper(serial_no) LIKE ? ESCAPE '\\')
+           ORDER BY (upper(p.sku) = ?) DESC, p.active DESC, p.name
+           LIMIT ?""",
+        (word_like, word_like, word_like, serial_like, text.upper(), limit),
+    ):
+        product = dict(row)
+        qty = quantities.get(product["id"], 0)
+        product["on_hand"] = qty
+        if qty <= 0:
+            product["stock_state"] = "out"
+        elif product["reorder_level"] > 0 and qty <= product["reorder_level"]:
+            product["stock_state"] = "low"
+        else:
+            product["stock_state"] = "ok"
+        products.append(product)
+
+    exact = units[0] if units and units[0]["serial_no"].upper() == compact else None
+    return {"units": units, "products": products, "exact_unit": exact}
+
+
+def serial_history(conn: sqlite3.Connection, serial_no: str) -> list[dict]:
+    """Every stock movement for one IMEI/serial, oldest first: received, sold, voided, written off."""
+    rows = conn.execute(
+        """SELECT created_at, move_type, qty, reference, note
+           FROM stock_moves WHERE serial_no = ? ORDER BY id""",
+        (serial_no,),
     )
     return [dict(row) for row in rows]

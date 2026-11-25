@@ -55,6 +55,10 @@ def _add_item() -> None:
         st.session_state[K_NOTICES].append(("error", str(exc) or "Choose a product first."))
 
 
+def _change_qty(index: int, delta: int) -> None:
+    pos.cart_change_qty(st.session_state[K_CART], index, delta)
+
+
 def _remove_item(index: int) -> None:
     pos.cart_remove(st.session_state[K_CART], index)
 
@@ -162,7 +166,10 @@ def render() -> None:
                     ),
                     unsafe_allow_html=True,
                 )
-                st.button("Remove", key=f"demo_remove_{index}", on_click=_remove_item, args=(index,))
+                minus, plus, remove = st.columns([1, 1, 2])
+                minus.button("−", key=f"demo_minus_{index}", on_click=_change_qty, args=(index, -1))
+                plus.button("+", key=f"demo_plus_{index}", on_click=_change_qty, args=(index, 1))
+                remove.button("Remove", key=f"demo_remove_{index}", on_click=_remove_item, args=(index,))
             st.button("Clear quote", key="demo_clear", disabled=not lines, on_click=_clear)
 
     with right:

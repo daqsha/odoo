@@ -49,4 +49,5 @@ with st.sidebar:
     st.markdown(theme.sidebar_footer(config.DB_PATH.name), unsafe_allow_html=True)
 
 common.show_flash()
+common.show_toasts()
 PAGES[page]()

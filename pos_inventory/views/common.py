@@ -27,6 +27,19 @@ def show_flash() -> None:
         getattr(st, kind)(message)
 
 
+TOAST_KEY = "_toasts"
+
+
+def toast(message: str, icon: str = "✅") -> None:
+    """Queue a short, non-blocking confirmation that pops up in the corner on the next run."""
+    st.session_state.setdefault(TOAST_KEY, []).append((message, icon))
+
+
+def show_toasts() -> None:
+    for message, icon in st.session_state.pop(TOAST_KEY, []):
+        st.toast(message, icon=icon)
+
+
 def show_notices(notices: Sequence[tuple[str, str]]) -> None:
     for kind, message in notices:
         getattr(st, kind)(message)
@@ -80,6 +93,38 @@ def savings_by_promo(
     return result
 
 
+def _promo_card(ev: Evaluation, applied: bool, *, prefix, on_apply, on_remove, saving: int) -> None:
+    promo = ev.promotion
+    with st.container(border=True, key=f"card_promo_{prefix}_{promo.id}"):
+        st.markdown(f"**{promo.name}** · `{promo.code}`")
+        st.caption(rules.reward_summary(promo))
+        if applied:
+            st.markdown(":green[✔ Applied to this sale]")
+        elif ev.eligible:
+            text = ":green[🔓 Unlocked. T&C met]"
+            if saving:
+                text += f" · saves **{money(saving)}**"
+            st.markdown(text)
+        else:
+            st.markdown(":red[🔒 Locked]")
+            for reason in ev.reasons:
+                st.caption(f"✖ {reason}")
+        with st.expander("Terms & conditions"):
+            for line in rules.terms(promo):
+                st.markdown(f"- {line}")
+        if applied:
+            st.button("Remove", key=f"{prefix}_promo_remove_{promo.id}", on_click=on_remove, args=(promo.id,))
+        else:
+            st.button(
+                "Apply",
+                key=f"{prefix}_promo_apply_{promo.id}",
+                type="primary" if ev.eligible else "secondary",
+                disabled=not ev.eligible,
+                on_click=on_apply,
+                args=(promo.id,),
+            )
+
+
 def promo_panel(
     evaluations: Iterable[Evaluation],
     applied_ids: Iterable[int],
@@ -89,50 +134,32 @@ def promo_panel(
     on_remove: Callable[[int], None],
     savings: dict[int, int] | None = None,
 ) -> None:
-    """One card per promotion. Unlocked ones can be applied; locked ones show exactly what is missing."""
+    """Applied and unlocked promotions first; locked ones grouped below with what each is missing.
+
+    The locked group opens by itself when nothing qualifies yet, so the cashier always sees why.
+    """
     applied_set = set(applied_ids)
     savings = savings or {}
-    ordered = sorted(
-        evaluations,
-        key=lambda ev: (ev.promotion.id not in applied_set, not ev.eligible, ev.promotion.code),
-    )
-    if not ordered:
+    evaluations = list(evaluations)
+    if not evaluations:
         st.info("No promotions are configured.")
         return
 
-    for ev in ordered:
-        promo = ev.promotion
-        applied = promo.id in applied_set
-        with st.container(border=True, key=f"card_promo_{prefix}_{promo.id}"):
-            st.markdown(f"**{promo.name}** · `{promo.code}`")
-            st.caption(rules.reward_summary(promo))
-            if applied:
-                st.markdown(":green[✔ Applied to this sale]")
-            elif ev.eligible:
-                text = ":green[🔓 Unlocked. T&C met]"
-                if savings.get(promo.id):
-                    text += f" · saves {money(savings[promo.id])}"
-                st.markdown(text)
-            else:
-                st.markdown(":red[🔒 Locked]")
-                for reason in ev.reasons:
-                    st.caption(f"✖ {reason}")
-            with st.expander("Terms & conditions"):
-                for line in rules.terms(promo):
-                    st.markdown(f"- {line}")
-            if applied:
-                st.button(
-                    "Remove",
-                    key=f"{prefix}_promo_remove_{promo.id}",
-                    on_click=on_remove,
-                    args=(promo.id,),
-                )
-            else:
-                st.button(
-                    "Apply",
-                    key=f"{prefix}_promo_apply_{promo.id}",
-                    type="primary" if ev.eligible else "secondary",
-                    disabled=not ev.eligible,
-                    on_click=on_apply,
-                    args=(promo.id,),
-                )
+    ready = sorted(
+        (ev for ev in evaluations if ev.promotion.id in applied_set or ev.eligible),
+        key=lambda ev: (ev.promotion.id not in applied_set, -savings.get(ev.promotion.id, 0), ev.promotion.code),
+    )
+    locked = sorted((ev for ev in evaluations if ev not in ready), key=lambda ev: ev.promotion.code)
+
+    for ev in ready:
+        _promo_card(
+            ev, ev.promotion.id in applied_set, prefix=prefix, on_apply=on_apply, on_remove=on_remove,
+            saving=savings.get(ev.promotion.id, 0),
+        )
+    if not ready:
+        st.caption("No promotion qualifies yet. Each locked card below lists what is missing.")
+    if locked:
+        label = f"🔒 {len(locked)} locked promotion(s) · see what is missing"
+        with st.expander(label, expanded=not ready):
+            for ev in locked:
+                _promo_card(ev, False, prefix=prefix, on_apply=on_apply, on_remove=on_remove, saving=0)

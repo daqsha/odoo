@@ -233,3 +233,72 @@ def test_settings_reset_requires_confirmation_and_reloads_seed(app):
     _button(app, "Reset to demo data").click().run()
     assert not app.exception
     assert _sql("SELECT COUNT(*) FROM products") == [(24,)]
+
+
+def _sell_phone_directly():
+    from datetime import date
+
+    from logic import pos
+
+    with transaction(write=True) as conn:
+        phone = catalog.get_product_by_sku(conn, "NX-X1-128-BLK")
+        serial = inventory.in_stock_serials(conn, phone["id"])[0]
+        cart: list[dict] = []
+        pos.cart_add(cart, product=phone, on_hand=4, in_stock_serials=[serial], serial_no=serial)
+        sale_id = pos.checkout(conn, items=cart, payment_code="CASH", customer_name="Rina", today=date.today())
+        receipt = pos.get_sale(conn, sale_id)["receipt_no"]
+    return serial, receipt
+
+
+def test_inventory_lookup_shows_exact_unit_status_and_receipt(app):
+    serial, receipt = _sell_phone_directly()
+    _go(app, "📦 Inventory")
+    app.text_input(key="inv_lookup").set_value(serial).run()
+    assert not app.exception
+    html = " ".join(m.value for m in app.markdown)
+    assert "exact match" in html and "Sold" in html and receipt in html and "Rina" in html
+
+
+def test_pos_lookup_adds_an_available_unit_to_the_order(app):
+    _go(app, "🛒 Point of Sale")
+    with transaction() as conn:
+        serial = inventory.in_stock_serials(conn, _product_id("PX-P7-128-GRY"))[0]
+    app.text_input(key="pos_lookup").set_value(serial).run()
+    app.button(key=f"pos_lkadd_x_{serial}").click().run()
+    assert not app.exception
+    assert app.session_state["pos_cart"] == [
+        {"product_id": _product_id("PX-P7-128-GRY"), "qty": 1, "serial_no": serial}
+    ]
+
+
+def test_scanning_a_sold_imei_explains_why_it_cannot_be_sold(app):
+    serial, receipt = _sell_phone_directly()
+    _go(app, "🛒 Point of Sale")
+    app.text_input(key="pos_scan").set_value(serial).run()
+    assert not app.exception
+    assert any("already sold" in e.value and receipt in e.value for e in app.error)
+    assert app.session_state["pos_cart"] == []
+
+
+def test_sales_search_filters_receipts(app):
+    _serial, receipt = _sell_phone_directly()
+    _go(app, "🧾 Sales & Receipts")
+    app.text_input(key="sales_search").set_value("rina").run()
+    assert not app.exception
+    assert receipt in app.selectbox(key="sales_pick").options[0]
+    app.text_input(key="sales_search").set_value("nobody-like-this").run()
+    assert not app.exception
+    assert any("No sale matches" in m.value for m in app.markdown)
+
+
+def test_demo_quote_quantity_controls(app):
+    _go(app, "🏷️ Demo Price")
+    charger = _product_id("CH-GAN-65W")
+    app.selectbox(key="demo_pick").set_value(charger).run()
+    _button(app, "Add to quote").click().run()
+    app.button(key="demo_plus_0").click().run()
+    assert app.session_state["demo_cart"][0]["qty"] == 2
+    app.button(key="demo_minus_0").click().run()
+    app.button(key="demo_minus_0").click().run()
+    assert not app.exception
+    assert app.session_state["demo_cart"] == []

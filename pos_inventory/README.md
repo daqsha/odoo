@@ -17,6 +17,7 @@ Everything persists in a local SQLite file, so stock, sales and promotions survi
 - [Set up in VS Code](#set-up-in-vs-code)
 - [Using the app](#using-the-app)
 - [Look and feel](#look-and-feel)
+- [Stock lookup (IMEI, serial, SKU, name)](#stock-lookup)
 - [How the promotion rule engine works](#how-the-promotion-rule-engine-works)
 - [Inventory rules (stock-in, stock-out, IMEI and serials)](#inventory-rules)
 - [Project layout](#project-layout)
@@ -123,6 +124,10 @@ The interface follows a purple and coral dashboard layout. The main parts are:
 - a greeting with search, and category pills that wrap
 - product cards with one primary action (*Order* or *Add unit*)
 - Best Seller and Statistics blocks, with a small revenue chart
+- toast confirmations for adds, applied promotions and completed sales; a progress stepper in the order panel
+  (Items, Payment, Promos, Checkout); and friendly empty states
+- promotions that qualify listed first, sorted by saving. Locked ones are grouped under a summary that opens by
+  itself when nothing qualifies yet, so the missing conditions stay one glance away
 - a sticky right-hand panel. On **Point of Sale** it holds *My Order*, the customer, payment, promotions and checkout. On **Demo Price** it holds the price estimate, and on **Overview** it holds recent orders and stock alerts.
 
 To rebrand:
@@ -132,6 +137,29 @@ To rebrand:
 - **Product icons:** the sample products have no photos. Each card shows an emoji for its category. Change `CATEGORY_ICONS` in `views/theme.py`, or extend the cards to show images.
 
 The heading font (Poppins) loads from Google Fonts. Without internet access the page falls back to the system font, and nothing else changes.
+
+## Stock lookup
+
+Staff can find any unit or product from two places:
+
+- **Inventory → 🔎 Lookup** (the first tab)
+- **Point of Sale → 🔎 Stock lookup** (button next to the scan box). Here, available units and quantity items have an
+  **Add to order** button.
+
+Type or scan a full or partial **IMEI or serial**, an **SKU**, a **product name** or a **brand**, then press Enter.
+
+- **Exact IMEI or serial:** a detail card shows the unit's status (**Available**, **Sold** or **Written off**), product,
+  price and date received. A sold unit also shows its receipt number, sale time and customer, and a written-off unit
+  shows the reason. A timeline lists every movement of that unit: received, sold, returned through a void, or written off.
+- **Partial numbers and product searches:** every matching unit is listed with a status badge. Each matching product
+  shows a stock badge (**In stock**, **Low stock** or **Out of stock**) and its counts of units available, sold and
+  written off.
+
+Scanning a sold or written-off IMEI into the POS scan box now says exactly why it cannot be sold (for example
+*"already sold on 25 Nov 2026 14:03, receipt R261125-00001"*) instead of a generic "not found".
+
+The **Orders & Receipts** page also has a filter by receipt number, customer or payment method, with completed,
+revenue and voided totals at the top.
 
 ## How the promotion rule engine works
 
@@ -232,8 +260,8 @@ pos_inventory/
 │   ├── money.py              Exact rounding and currency formatting
 │   ├── errors.py             BusinessError, StockError, PromotionError
 │   └── utils.py
-├── views/                    Streamlit pages (one module per page) and theme.py for styling
-└── tests/                    83 tests: rules, pricing, identifiers, stock and sales, theme helpers and headless app flows
+├── views/                    Streamlit pages (one module per page), lookup.py (shared stock lookup) and theme.py (styling)
+└── tests/                    93 tests: rules, pricing, identifiers, stock, sales, lookup, theme helpers and headless app flows
 ```
 
 Data flows one way: pages call `logic/`, and `logic/` talks to SQLite through an open connection passed in by the page.
@@ -255,6 +283,8 @@ It covers:
 - IMEI checksums and serial validation
 - stock invariants: the ledger always equals the count of in-stock serials, and nothing goes negative
 - checkout atomicity (a stale serial or a failed promotion writes nothing), voids and reset
+- stock lookup: partial and exact IMEI, product names, sold and written-off details, unit history, and
+  SQL wildcard safety
 - the real Streamlit app driven headlessly with `streamlit.testing`: the full cashier flow, Demo Price,
   inventory forms, promotion creation and validation, void, and reset
 

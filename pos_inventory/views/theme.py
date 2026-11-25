@@ -49,7 +49,7 @@ CSS = """
   --primary-deep: #3A0A7E;
   --accent: #E4604F;
   --ink: #1E1B2E;
-  --muted: #8A8FA3;
+  --muted: #6B7085;
   --line: #EEEBF6;
   --card: #FFFFFF;
   --page: #F6F6FB;
@@ -196,6 +196,51 @@ button[data-baseweb="tab"] { font-weight: 500; }
 .st-key-dash_category div[data-testid="stButtonGroup"] > div { flex-wrap: wrap !important; row-gap: 6px; }
 div[data-testid="stExpander"] details { border-radius: 14px; border-color: #ECE8F6; }
 
+/* ---------- interaction feedback ---------- */
+[class*="st-key-card_tile_"], [class*="st-key-card_popular_"] { transition: transform .15s ease, box-shadow .15s ease; }
+[class*="st-key-card_tile_"]:hover, [class*="st-key-card_popular_"]:hover {
+  transform: translateY(-3px); box-shadow: 0 16px 36px rgba(45, 25, 110, .13);
+}
+.stButton > button, .stDownloadButton > button, .stFormSubmitButton > button {
+  transition: transform .1s ease, box-shadow .15s ease, background .15s ease;
+}
+.stButton > button:active:not(:disabled) { transform: scale(.97); }
+.stButton > button:disabled { opacity: .5; }
+.mono { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace !important; letter-spacing: .02em; }
+
+/* ---------- empty states ---------- */
+.empty { text-align: center; padding: 1.6rem 1rem; color: var(--muted); }
+.empty .ei { font-size: 2rem; margin-bottom: .3rem; }
+.empty .et { color: var(--ink); font-weight: 600; font-size: .98rem; }
+.empty .es { font-size: .84rem; margin-top: .2rem; }
+
+/* ---------- checkout stepper ---------- */
+.stepper { display: flex; gap: .3rem; margin: .1rem 0 .9rem; }
+.step { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: .3rem; font-size: .7rem; color: var(--muted);
+  font-weight: 500; padding: .35rem .4rem; border-radius: 12px; background: #F3F1FA; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; }
+.step .n { width: 20px; height: 20px; min-width: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: .7rem; font-weight: 700; background: #E4DFF3; color: var(--muted); }
+.step.done { background: #E6F8EE; color: #14864B; }
+.step.done .n { background: #14864B; color: #fff; }
+.step.active { background: #EEE8FF; color: var(--primary); }
+.step.active .n { background: var(--primary); color: #fff; }
+
+/* ---------- lookup results ---------- */
+.unit-hero { border-radius: 18px; padding: 1rem 1.1rem; background: linear-gradient(135deg, #F4EFFF, #FFF4F1); margin-bottom: .6rem; }
+.unit-hero .top { display: flex; justify-content: space-between; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.unit-hero .sn { font-size: 1.15rem; font-weight: 700; color: var(--ink); }
+.unit-hero .meta { color: var(--muted); font-size: .82rem; margin-top: .2rem; }
+.unit-hero .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .5rem; margin-top: .8rem; }
+.unit-hero .fact { background: rgba(255,255,255,.75); border-radius: 12px; padding: .5rem .7rem; }
+.unit-hero .fact .k { color: var(--muted); font-size: .72rem; }
+.unit-hero .fact .v { color: var(--ink); font-size: .88rem; font-weight: 600; }
+.tl { border-left: 2px solid #E4DFF3; margin: .4rem 0 .2rem .5rem; padding-left: .9rem; }
+.tl .ev { position: relative; padding: .25rem 0 .55rem; font-size: .82rem; color: var(--ink); }
+.tl .ev::before { content: ""; position: absolute; left: -1.27rem; top: .55rem; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--primary); border: 2px solid #fff; box-shadow: 0 0 0 1px #E4DFF3; }
+.tl .ev small { color: var(--muted); display: block; font-size: .74rem; }
+
 @media (max-width: 1000px) {
   .block-container { padding: 1rem; }
   .st-key-order_panel, .st-key-quote_panel, .st-key-overview_side { position: static; max-height: none; }
@@ -330,7 +375,7 @@ def revenue_chart(points: list[tuple[str, int]]) -> str:
         f'<circle cx="{xs[peak_index]:.1f}" cy="{ys[peak_index]:.1f}" r="4.5" fill="#E35B4F" stroke="#FFFFFF" stroke-width="2"/>'
     )
     text = "".join(
-        f'<text x="{x:.1f}" y="{height - 6}" text-anchor="middle" font-size="10" fill="#8A8FA3">{esc(label)}</text>'
+        f'<text x="{x:.1f}" y="{height - 6}" text-anchor="middle" font-size="10" fill="#6B7085">{esc(label)}</text>'
         for x, label in zip(xs, labels)
     )
     return (
@@ -342,6 +387,25 @@ def revenue_chart(points: list[tuple[str, int]]) -> str:
         f'<path d="{line}" fill="none" stroke="{PRIMARY}" stroke-width="2.5" stroke-linecap="round"/>'
         f'{marker}{text}</svg>'
     )
+
+
+def empty_state(icon: str, title: str, text: str = "") -> str:
+    sub = f'<div class="es">{esc(text)}</div>' if text else ""
+    return f'<div class="empty"><div class="ei">{icon}</div><div class="et">{esc(title)}</div>{sub}</div>'
+
+
+def stepper(steps: list[tuple[str, bool]]) -> str:
+    """Progress chips such as Items > Payment > Promotions > Checkout. The first unfinished step is active."""
+    parts, active_given = [], False
+    for number, (label, done) in enumerate(steps, start=1):
+        if done:
+            cls, mark = "step done", "✓"
+        elif not active_given:
+            cls, mark, active_given = "step active", str(number), True
+        else:
+            cls, mark = "step", str(number)
+        parts.append(f'<div class="{cls}"><span class="n">{mark}</span>{esc(label)}</div>')
+    return '<div class="stepper">' + "".join(parts) + "</div>"
 
 
 def total_row(label: str, value: str) -> str:

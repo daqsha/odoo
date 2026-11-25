@@ -286,3 +286,61 @@ def test_reset_demo_data_restores_the_seed_after_changes(db):
         assert inventory.on_hand(conn, pid(conn, "NX-X1-128-BLK")) == 4
         assert conn.execute("SELECT COUNT(*) FROM sales").fetchone()[0] == 0
         assert_ledger_matches_serials(conn)
+
+
+# ----- stock lookup -----
+
+def test_lookup_finds_units_by_partial_imei_and_by_product_name(db):
+    with transaction(db) as conn:
+        phone = pid(conn, "NX-X1-128-BLK")
+        serial = inventory.in_stock_serials(conn, phone)[0]
+        partial = inventory.lookup(conn, serial[3:11])
+        assert any(u["serial_no"] == serial for u in partial["units"])
+        assert partial["exact_unit"] is None
+        by_name = inventory.lookup(conn, "nimbus x1")
+        assert {p["sku"] for p in by_name["products"]} >= {"NX-X1-128-BLK", "NX-X1-256-BLU"}
+        assert all(u["status"] == "in_stock" for u in by_name["units"])
+
+
+def test_lookup_exact_match_reports_sale_details_and_history(db):
+    sale_id, serial = sell_one_phone(db, customer="Rina")
+    with transaction(db) as conn:
+        result = inventory.lookup(conn, serial)
+        unit = result["exact_unit"]
+        assert unit["serial_no"] == serial and result["units"][0]["serial_no"] == serial
+        assert unit["status"] == "sold"
+        assert unit["receipt_no"] == pos.get_sale(conn, sale_id)["receipt_no"]
+        assert unit["customer_name"] == "Rina"
+    with transaction(db, write=True) as conn:
+        pos.void_sale(conn, sale_id=sale_id, reason="Returned")
+    with transaction(db) as conn:
+        assert inventory.lookup(conn, serial)["exact_unit"]["status"] == "in_stock"
+        moves = [m["move_type"] for m in inventory.serial_history(conn, serial)]
+        assert moves == ["STOCK_IN", "SALE", "VOID_SALE"]
+
+
+def test_lookup_shows_write_off_reason(db):
+    with transaction(db, write=True) as conn:
+        drone = pid(conn, "DR-MINI-2")
+        serial = inventory.in_stock_serials(conn, drone)[0]
+        inventory.stock_out(conn, product_id=drone, reason="Damaged", serials=[serial], note="dropped")
+        unit = inventory.lookup(conn, serial)["exact_unit"]
+        assert unit["status"] == "written_off"
+        assert unit["writeoff_note"] == "Damaged - dropped"
+
+
+def test_lookup_treats_sql_wildcards_literally_and_handles_blank_input(db):
+    with transaction(db) as conn:
+        assert inventory.lookup(conn, "%") == {"units": [], "products": [], "exact_unit": None}
+        assert inventory.lookup(conn, "_") == {"units": [], "products": [], "exact_unit": None}
+        assert inventory.lookup(conn, "   ") == {"units": [], "products": [], "exact_unit": None}
+
+
+def test_lookup_product_stock_state_and_counts(db):
+    sell_one_phone(db)
+    with transaction(db) as conn:
+        product = next(p for p in inventory.lookup(conn, "NX-X1-128-BLK")["products"] if p["sku"] == "NX-X1-128-BLK")
+        assert product["units_available"] == 3 and product["units_sold"] == 1
+        assert product["stock_state"] == "ok"
+        keyboard = next(p for p in inventory.lookup(conn, "KB-BT-SLIM")["products"])
+        assert keyboard["stock_state"] == "low"

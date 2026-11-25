@@ -11,7 +11,7 @@ from logic.errors import BusinessError
 from logic.identifiers import split_identifiers
 from logic.inventory import STOCK_OUT_REASONS
 from logic.money import money
-from views import common, theme
+from views import common, lookup, theme
 
 K_VERSION = "inv_form_version"
 MOVE_LABELS = {
@@ -41,9 +41,16 @@ def _product_name(products: dict[int, dict], pid: int) -> str:
 
 def render() -> None:
     theme.page_header("Product & Inventory", "Stock levels, receiving, write-offs and the catalogue")
-    overview_tab, stock_in_tab, stock_out_tab, catalogue_tab, history_tab = st.tabs(
-        ["Stock overview", "Stock-in", "Stock-out & adjustments", "Catalogue", "Movement history"]
+    lookup_tab, overview_tab, stock_in_tab, stock_out_tab, catalogue_tab, history_tab = st.tabs(
+        ["🔎 Lookup", "Stock overview", "Stock-in", "Stock-out & adjustments", "Catalogue", "Movement history"]
     )
+    with lookup_tab:
+        with st.container(border=True, key="card_inv_lookup"):
+            st.markdown(
+                '<div class="section-title">Stock lookup <small>IMEI, serial, SKU, name or brand</small></div>',
+                unsafe_allow_html=True,
+            )
+            lookup.render("inv")
     with overview_tab:
         _overview()
     with stock_in_tab:
