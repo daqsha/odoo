@@ -1,0 +1,12 @@
+code,label,method,issuer,tenor_months,surcharge_pct,active
+CASH,Cash,CASH,,0,0,1
+BCA-DC,BCA Debit Card,DEBIT_CARD,BCA,0,0,1
+BNI-DC,BNI Debit Card,DEBIT_CARD,BNI,0,0,1
+BCA-CC-FULL,BCA Credit Card (full payment),CREDIT_CARD,BCA,0,0,1
+BCA-CC-6M,BCA Credit Card 6-month installment,CREDIT_CARD,BCA,6,0,1
+BCA-CC-12M,BCA Credit Card 12-month installment,CREDIT_CARD,BCA,12,1.5,1
+MDR-CC-6M,Mandiri Credit Card 6-month installment,CREDIT_CARD,Mandiri,6,1,1
+MDR-CC-12M,Mandiri Credit Card 12-month 0% installment,CREDIT_CARD,Mandiri,12,0,1
+GOPAY,GoPay,EWALLET,GoPay,0,0,1
+OVO,OVO,EWALLET,OVO,0,0,1
+VA-BNI,BNI Virtual Account transfer,TRANSFER,BNI,0,0,1

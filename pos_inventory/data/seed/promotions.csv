@@ -1,0 +1,10 @@
+code,name,description,reward_type,reward_value,max_reward,min_spend,min_qty,stackable,start_date,end_date,active,eligible_skus,required_payment_codes
+BCA10-PHONE,BCA Credit Card 10 percent off smartphones,10 percent off eligible smartphones when paying with any BCA credit card option,PERCENT_OFF,10,500000,3000000,1,0,,,1,NX-X1-128-BLK|NX-X1-256-BLU|PX-P7-128-GRY|VZ-Z3-064-BLK|VZ-Z5-128-GRN,BCA-CC-FULL|BCA-CC-6M|BCA-CC-12M
+MDR12-LAPTOP,Mandiri 12-month 0 percent laptop deal,Rp150.000 off laptops when paying with the Mandiri 12-month 0 percent installment,FIXED_OFF,150000,,8000000,1,0,,,1,ZB-14-I5-512|ZB-15-I7-1TB,MDR-CC-12M
+GOPAY15,GoPay 15 percent cashback,15 percent cashback on the whole purchase paid with GoPay,CASHBACK,15,150000,100000,1,1,,,1,,GOPAY
+CASH-ACC50,Cash bundle Rp50.000 off accessories,Rp50.000 off when buying 2 or more accessories paid in cash,FIXED_OFF,50000,,200000,2,1,,,1,CH-GAN-65W|CB-USBC-1M|PB-20K-PD|GL-PX7-TMP|CS-NX1-SLM|HB-USBC-5IN1|KB-BT-SLIM,CASH
+BNI-WEAR20,BNI debit 20 percent off wearables,20 percent off smartwatches and bands when paying with BNI debit card,PERCENT_OFF,20,300000,0,1,0,,,1,PW-S-41-BLK|PB-2-BAND,BNI-DC
+MEGA-5JT,Spend Rp5 million get Rp250.000 off,Rp250.000 off when eligible spend reaches Rp5.000.000 any payment method,FIXED_OFF,250000,,5000000,1,0,,,1,,
+OVO-ACC10,OVO 10 percent cashback on accessories,10 percent cashback on accessories paid with OVO,CASHBACK,10,50000,150000,1,1,,,1,CH-GAN-65W|CB-USBC-1M|PB-20K-PD|CS-NX1-SLM|HB-USBC-5IN1,OVO
+WELCOME5,Welcome 5 percent off stackable,5 percent off eligible items for any payment method and can stack with other stackable discounts,PERCENT_OFF,5,100000,500000,1,1,,,1,,
+TAB-LAUNCH25,Launch week 25 percent off tablets,25 percent off Orbit tablets during launch week,PERCENT_OFF,25,400000,0,1,0,2025-12-01,2025-12-31,1,OT-10-WIFI-64|OT-10-LTE-128,

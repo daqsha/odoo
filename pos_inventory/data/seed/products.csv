@@ -1,0 +1,25 @@
+sku,name,brand,category,tracking,cost,price,reorder_level,active
+NX-X1-128-BLK,Nimbus X1 128GB Black,Nimbus,Smartphones,imei,3900000,4599000,2,1
+NX-X1-256-BLU,Nimbus X1 256GB Blue,Nimbus,Smartphones,imei,4300000,4999000,2,1
+PX-P7-128-GRY,Pixo P7 128GB Grey,Pixo,Smartphones,imei,2350000,2799000,2,1
+VZ-Z3-064-BLK,Vexa Z3 64GB Black,Vexa,Smartphones,imei,1380000,1699000,2,1
+VZ-Z5-128-GRN,Vexa Z5 Pro 128GB Green,Vexa,Smartphones,imei,2700000,3299000,2,1
+OT-10-WIFI-64,Orbit Tab 10 Wi-Fi 64GB,Orbit,Tablets,serial,1850000,2499000,1,1
+OT-10-LTE-128,Orbit Tab 10 LTE 128GB,Orbit,Tablets,serial,2400000,3199000,1,1
+ZB-14-I5-512,Zentra Book 14 i5 8GB 512GB,Zentra,Laptops,serial,7600000,8999000,1,1
+ZB-15-I7-1TB,Zentra Book 15 i7 16GB 1TB,Zentra,Laptops,serial,11200000,12999000,1,1
+PW-S-41-BLK,Pulse Watch S 41mm Black,Pulse,Wearables,serial,800000,1299000,2,1
+PB-2-BAND,Pulse Band 2,Pulse,Wearables,serial,250000,499000,2,1
+BW-ANC-EB,Beatwave ANC Earbuds,Beatwave,Audio,serial,520000,899000,2,1
+BW-OE-PRO,Beatwave Over-Ear Pro,Beatwave,Audio,serial,700000,1199000,1,1
+BW-MINI-SPK,Beatwave Mini Speaker,Beatwave,Audio,none,180000,349000,5,1
+AC-4K-ACT,Vexa Action Cam 4K,Vexa,Cameras,serial,680000,1099000,1,1
+DR-MINI-2,Vexa Drone Mini 2,Vexa,Cameras,serial,1600000,2199000,2,1
+CH-GAN-65W,65W GaN USB-C Charger,Nimbus,Accessories,none,150000,299000,10,1
+CB-USBC-1M,USB-C Cable 1m,Generic,Accessories,none,22000,79000,20,1
+PB-20K-PD,Power Bank 20000mAh PD,Generic,Accessories,none,260000,449000,5,1
+GL-PX7-TMP,Tempered Glass for Pixo P7,Generic,Accessories,none,9000,49000,15,1
+CS-NX1-SLM,Slim Case for Nimbus X1,Generic,Accessories,none,35000,99000,10,1
+SP-WIFI-PLG,Pulse Wi-Fi Smart Plug,Pulse,Smart Home,none,70000,129000,8,1
+HB-USBC-5IN1,Zentra USB-C 5-in-1 Hub,Zentra,Accessories,none,210000,359000,5,1
+KB-BT-SLIM,Zentra Bluetooth Slim Keyboard,Zentra,Accessories,none,180000,289000,3,1
